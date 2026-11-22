@@ -1,22 +1,35 @@
 # wireshark-remoteid
 
-A Wireshark / tshark dissector for **ASTM F3411 Open Drone ID** (drone Remote ID)
-broadcast over Bluetooth and Wi-Fi.
+**Every drone with Remote ID is broadcasting its serial number, position and operator location over the air right now. This makes Wireshark read it.**
 
-It decodes the Open Drone ID messages, Basic ID, Location/Vector, Self ID,
-Authentication, System and Operator ID, and the Message Pack that carries
-several of them behind one header, into a readable protocol tree: ID type and
-UAS ID, aircraft position, operator location, operating area, timestamps and
-accuracy codes.
+```
+ASTM Remote ID (Bluetooth LE service data)
+    Application Code: 0x0d
+    Message Counter: 0
+    Open Drone ID Message: Basic ID (15819HNEST0000)
+        0000 .... = Message Type: Basic ID (0)
+        .... 0010 = Protocol Version: 2
+        0001 .... = ID Type: Serial Number (ANSI/CTA-2063-A) (1)
+        .... 0010 = UA Type: Helicopter or Multirotor (2)
+        UAS ID: 15819HNEST0000
+    Open Drone ID Message: Location/Vector
+        Status: Airborne (2)
+        Track Direction: 215 deg
+        Speed: 4.25 m/s
+        Latitude: 45.5200100
+        Longitude: -122.6500200
+        Geodetic Altitude: 118.5 m
+        Height above takeoff: 92.0 m
+    Open Drone ID Message: System
+        Operator Latitude: 45.5190000
+        Operator Longitude: -122.6480000
+```
 
-The field layout follows the `opendroneid-core-c` reference and the Rust
-[`remoteid`](https://crates.io/crates/remoteid) crate byte for byte. Decoding
-is verified against `remoteid`'s own encoder: every message in the bundled
-sample capture round-trips to the exact values the encoder produced (320/320).
+Drop one Lua file into Wireshark and the raw service-data blob above becomes an aircraft and the person flying it: ID, position, speed, operator location, timestamps, all labelled.
 
-This is a **receive / decode only** tool. There is no transmit path anywhere in
-this repository, and the sample capture is synthetic bench data written to a
-file, never broadcast.
+**[Live demo](https://mattbusel.github.io/drone-demos/)** &nbsp;·&nbsp; [![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](LICENSE-MIT) [![License: Apache 2.0](https://img.shields.io/badge/License-Apache_2.0-blue.svg)](LICENSE-APACHE)
+
+A Wireshark / tshark dissector for **ASTM F3411 Open Drone ID** broadcast over Bluetooth and Wi-Fi. It decodes the full message set, Basic ID, Location/Vector, Self ID, Authentication, System and Operator ID, and the Message Pack that carries several of them behind one header, into a readable protocol tree. The field layout follows the `opendroneid-core-c` reference and the Rust [`remoteid`](https://crates.io/crates/remoteid) crate byte for byte, and decoding is verified against `remoteid`'s own encoder: every message in the bundled sample capture round-trips to the exact values the encoder produced (320/320). It is **receive / decode only**. There is no transmit path anywhere in this repository, and the sample capture is synthetic bench data written to a file, never broadcast.
 
 ## What it dissects
 
@@ -72,21 +85,7 @@ and Operator ID messages.
 tshark -X lua_script:opendroneid.lua -r test/remoteid-sample.pcap -V
 ```
 
-A Basic ID dissects like this:
-
-```
-ASTM Remote ID (Bluetooth LE service data)
-    Application Code: 0x0d
-    Message Counter: 0
-    Open Drone ID Message: Basic ID (15819HNEST0000)
-        0000 .... = Message Type: Basic ID (0)
-        .... 0010 = Protocol Version: 2
-        0001 .... = ID Type: Serial Number (ANSI/CTA-2063-A) (1)
-        .... 0010 = UA Type: Helicopter or Multirotor (2)
-        UAS ID: 15819HNEST0000
-```
-
-A one-line-per-packet summary:
+A one-line-per-packet summary drops the `-V`:
 
 ```
 tshark -X lua_script:opendroneid.lua -r test/remoteid-sample.pcap
